@@ -7,9 +7,12 @@ edition = "2021"
 
 [dependencies]
 rand = "*"
-noise = "0.7"
 image = "*"
-num_cpus = "1.6"
-serde = "*"
-ron  = "*"
 glam = "*"
+rayon = "1.5"
+num_cpus = "1.13.1"
+
+#noise = "0.7"
+#num_cpus = "1.6"
+#serde = "*"
+#ron  = "*"

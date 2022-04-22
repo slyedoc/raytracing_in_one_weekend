@@ -5,13 +5,15 @@ use crate::{Ray, hittable::{HitTable, HitRecord}};
 pub struct Sphere {
     center: Vec3,
     radius: f32,
+    material: usize,
 }
 
 impl Sphere {
-    pub fn new(center: Vec3, radius: f32) -> Self {
+    pub fn new(center: Vec3, radius: f32, material: usize ) -> Self {
         Self {
             center,
             radius,
+            material,
         }
     }
 }
@@ -44,6 +46,7 @@ impl HitTable for Sphere {
             t,
             p,
             normal,
+            material: self.material,
             ..Default::default()
         };
         let outward_normal = (rec.p - self.center) / self.radius;

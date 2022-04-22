@@ -2,12 +2,12 @@ use glam::Vec3;
 
 use crate::ray::Ray;
 
-
 pub struct HitRecord {
     pub p: Vec3,
     pub normal: Vec3,
     pub t: f32,
     pub front_face: bool,
+    pub material: usize,
 }
 
 impl Default for HitRecord {
@@ -16,7 +16,8 @@ impl Default for HitRecord {
             p: Vec3::ZERO,
             normal: Vec3::ZERO,
             t: 0.0,
-            front_face: true
+            front_face: true,
+            material: 0,
          }
     }
 }

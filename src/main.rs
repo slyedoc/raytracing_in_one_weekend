@@ -1,89 +1,109 @@
 #![allow(dead_code)]
-mod vec3;
 mod camera;
 mod hittable;
+mod materials;
 mod ray;
+mod scene;
 mod shapes;
+mod vec3;
 mod world;
 
 use camera::Camera;
 use glam::*;
 use image::{Rgb, RgbImage};
-use rand::{distributions::Uniform, prelude::Distribution};
+use rand::{Rng};
 use ray::Ray;
-use vec3::random_in_unit_sphere;
 use world::World;
+use rayon::prelude::*;
 
 fn ray_color(r: &Ray, world: &World, depth: u8) -> Vec3 {
     if depth == 0 {
         return Vec3::ZERO;
     }
 
-    if let Some(rec) = world.hit(r, 0.0, f32::INFINITY) {
-        let target = rec.p + rec.normal + random_in_unit_sphere();
-        return 0.5 * ray_color(&Ray::new(rec.p, target - rec.p), world, depth - 1);
+    if let Some(rec) = world.hit(r, 0.001, f32::INFINITY) {
+        if let Some(scatter) = world
+            .get_material(rec.material)
+            .scatter(r, &rec) {
+                return scatter.attenuation * ray_color(&scatter.ray, world, depth - 1);
+            }
+        return Vec3::ZERO;
     }
 
-    let unit_direction = unit_vector(r.direction);
+    let unit_direction = r.direction.normalize();
     let t = 0.5 * (unit_direction.y + 1.0);
-    (1.0 - t) * Vec3::new(1.0, 1.0, 1.0) + t * Vec3::new(0.5, 0.7, 1.0)
+    (1.0 - t) * vec3(1.0, 1.0, 1.0) + t * vec3(0.5, 0.7, 1.0)
 }
-
-fn unit_vector(v: Vec3) -> Vec3 {
-    v / v.length()
-}
-
 
 fn main() {
-    let zero_to_one = Uniform::new(0.0f32, 1.0);
-    let mut rng = rand::thread_rng();
-
     // Image
-    let aspect_ratio = 16.0 / 9.0;
-    let width = 400;
+    let aspect_ratio = 3.0 / 2.0;
+    let width = 1024;
     let height = (width as f32 / aspect_ratio) as u32;
-    let samples_per_pixel = 100;
-    let max_depth = 50;
 
-    let mut img = RgbImage::new(width, height);
+    // Quality
+    let samples_per_pixel = 500usize;
+    let max_depth = 20;
+
+    // Camera
+    let camera = Camera::new(
+        vec3(13.0, 2.0, 3.0),
+        vec3(0.0, 0.0, 0.0),
+        vec3(0.0, 1.0, 0.0),
+        20.0,
+        aspect_ratio,
+        0.01,
+        10.0, // (look_from - look_at).length();
+    );
 
     // World
     let mut world = World::new();
-    world.add_sphere(Vec3::new(0.0, 0.0, -1.0), 0.5);
-    world.add_sphere(Vec3::new(0.0, -100.5, -1.0), 100.0);
 
-    // Camera
-    let camera = Camera::new(aspect_ratio);
+
+    //scene::fov_scene(&mut world);
+    //scene::three_ball_scene(&mut world);
+    scene::book_cover_scene(&mut world);
+
+    
+    let mut img = RgbImage::new(width, height);
 
     for j in (0..height).rev() {
         println!("Scanlines remaining: {j}");
         for i in 0..width {
-            let mut total_pixel_color = Vec3::ZERO;
-            for _ in 0..samples_per_pixel {
-                let u = (i as f32 + zero_to_one.sample(&mut rng)) / (width - 1) as f32;
-                let v = (j as f32 + zero_to_one.sample(&mut rng)) / (height - 1) as f32;
-
+            
+            let color = (0..samples_per_pixel)
+            .into_par_iter()
+            .map(|i| {
+                let mut rng = rand::thread_rng();
+                let u = (i as f32 + rng.gen_range(0.0..1.0)) / width as f32;
+                let v = (j as f32 + rng.gen_range(0.0..1.0)) / height as f32;
                 let r = camera.get_ray(u, v);
-                total_pixel_color += ray_color(&r, &world, max_depth);
-            }
+                ray_color(&r, &world, max_depth)
+            })
+            .collect::<Vec<Vec3>>()
+            .iter()
+            .sum();
 
             img.put_pixel(
                 i,
                 (height - 1) - j,
-                get_pixel_color(total_pixel_color, samples_per_pixel),
+                correct_pixel_color(color, samples_per_pixel),
             );
         }
     }
     img.save("out.png").unwrap();
 }
 
-fn get_pixel_color(v: Vec3, samples: u8) -> Rgb<u8> {
+fn correct_pixel_color(v: Vec3, samples: usize) -> Rgb<u8> {
+    // Divide the color by the number of samples and gamma-correct for gamma=2.0.
     let scale = 1.0 / samples as f32;
-    let v = v * scale;
+    let r = (scale * v.x).sqrt();
+    let g = (scale * v.y).sqrt();
+    let b = (scale * v.z).sqrt();
+
     Rgb([
-        (256.0 * v.x.clamp(0.0, 0.99)) as u8,
-        (256.0 * v.y.clamp(0.0, 0.99)) as u8,
-        (256.0 * v.z.clamp(0.0, 0.99)) as u8,
+        (256.0 * r.clamp(0.0, 0.99)) as u8,
+        (256.0 * g.clamp(0.0, 0.99)) as u8,
+        (256.0 * b.clamp(0.0, 0.99)) as u8,
     ])
 }
-
