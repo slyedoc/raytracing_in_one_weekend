@@ -51,14 +51,17 @@ impl Camera {
         }
     }
 
-    pub fn get_ray(&self, s: f32, t: f32) -> Ray {
+    pub fn get_ray(&self, u: f32, v: f32) -> Ray {
         let rd = self.lens_radius * Vec3::random_in_unit_disk();
-        let offset = self.u * rd.x + self.v * rd.y;
-        
+        let offset = self.u * rd.x + self.v * rd.y;        
         Ray {
             origin: self.origin,
-            direction: self.lower_left_corner + s * self.horizontal + t * self.vertical
+            direction: self.lower_left_corner + u * self.horizontal + v * self.vertical
                 - self.origin - offset,
         }
+        // Ray {
+        //     origin: self.origin,
+        //     direction: self.lower_left_corner + u * self.horizontal + v * self.vertical - self.origin,
+        // }
     }
 }

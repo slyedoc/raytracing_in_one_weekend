@@ -3,7 +3,7 @@ use std::f32::consts::PI;
 use glam::{Vec3, vec3};
 use rand::Rng;
 
-use crate::{world::World, materials::{ Material}, vec3::Vec3Helpers};
+use crate::{world::World, material::{ Material}, vec3::Vec3Helpers};
 
 pub fn book_cover_scene(world: &mut World) {
 

@@ -1,6 +1,6 @@
 use glam::Vec3;
 
-use crate::{shapes::Sphere, ray::Ray, hittable::{HitRecord, HitTable}, materials::{MaterialHandle, Material}};
+use crate::{shapes::Sphere, ray::Ray, hittable::{HitRecord, HitTable}, material::{MaterialHandle, Material}};
 
 pub struct World {
     spheres: Vec<Sphere>,

@@ -1,7 +1,7 @@
 #![allow(dead_code)]
 mod camera;
 mod hittable;
-mod materials;
+mod material;
 mod ray;
 mod scene;
 mod shapes;
@@ -11,6 +11,7 @@ mod world;
 use camera::Camera;
 use glam::*;
 use image::{Rgb, RgbImage};
+use indicatif::ProgressBar;
 use rand::{Rng};
 use ray::Ray;
 use world::World;
@@ -40,58 +41,67 @@ fn main() {
     let aspect_ratio = 3.0 / 2.0;
     let width = 1024;
     let height = (width as f32 / aspect_ratio) as u32;
-
-    // Quality
-    let samples_per_pixel = 500usize;
+    let samples_per_pixel = 2000usize;
     let max_depth = 20;
-
-    // Camera
-    let camera = Camera::new(
-        vec3(13.0, 2.0, 3.0),
-        vec3(0.0, 0.0, 0.0),
-        vec3(0.0, 1.0, 0.0),
-        20.0,
-        aspect_ratio,
-        0.01,
-        10.0, // (look_from - look_at).length();
-    );
+    
+    let look_from = vec3(5.0, 2.0, -5.0);
+    let look_at = vec3(0.0, 0.0, 0.0);
+    let vup = Vec3::Y;
+    let vfov = 45.0;
+    let dist_to_focus = (look_from - look_at).length();
+    let aperture = 0.01;
 
     // World
     let mut world = World::new();
 
+    // Camera
+    let camera = Camera::new(
+        look_from,
+        look_at,
+        vup,
+        vfov,
+        aspect_ratio,
+        aperture,
+        dist_to_focus,
+    );
 
-    //scene::fov_scene(&mut world);
-    //scene::three_ball_scene(&mut world);
+    //fov_scene(&mut world);
+    //three_ball_scene(&mut world);
     scene::book_cover_scene(&mut world);
 
     
     let mut img = RgbImage::new(width, height);
 
-    for j in (0..height).rev() {
-        println!("Scanlines remaining: {j}");
-        for i in 0..width {
-            
-            let color = (0..samples_per_pixel)
+    let progress_bar = ProgressBar::new(height as u64);
+    for y in 0..height {
+        for x in 0..width {
+            let pixel_samples = (0..samples_per_pixel)
             .into_par_iter()
-            .map(|i| {
+            .map(|_| {
                 let mut rng = rand::thread_rng();
-                let u = (i as f32 + rng.gen_range(0.0..1.0)) / width as f32;
-                let v = (j as f32 + rng.gen_range(0.0..1.0)) / height as f32;
+                let u = (x as f32 + rng.gen_range(0.0..1.0)) / width as f32;
+                let v = (y as f32 + rng.gen_range(0.0..1.0)) / height as f32;
                 let r = camera.get_ray(u, v);
+                //println!("uv ={:?}{:?}", u, v);
                 ray_color(&r, &world, max_depth)
             })
-            .collect::<Vec<Vec3>>()
-            .iter()
-            .sum();
+            .collect::<Vec<Vec3>>();
+            
+            let mut color = Vec3::ZERO;
+            for c in pixel_samples.iter() {
+                color += *c;
+            }
 
             img.put_pixel(
-                i,
-                (height - 1) - j,
+                x,
+                (height -1) - y,
                 correct_pixel_color(color, samples_per_pixel),
             );
         }
-    }
+        progress_bar.inc(1);
+    }    
     img.save("out.png").unwrap();
+    progress_bar.finish_with_message("Complete!");
 }
 
 fn correct_pixel_color(v: Vec3, samples: usize) -> Rgb<u8> {

@@ -10,7 +10,7 @@ rand = "*"
 image = "*"
 glam = "*"
 rayon = "1.5"
-num_cpus = "1.13.1"
+indicatif = "0.16.2"
 
 #noise = "0.7"
 #num_cpus = "1.6"
